@@ -76,40 +76,87 @@ export async function getAllClients(req, res) {
 
 // Get client by ID
 export async function getClientById(req, res) {
+    console.log('\n=== Get Client By ID Request ===');
+    console.log('Query Parameters:', req.query);
+    
     try {
-        const doc = await db.collection(clientCollection).doc(req.params.id).get();
+        const { id } = req.query;
+        
+        if (!id) {
+            console.log('Error: Missing ID parameter');
+            return res.status(400).json({ error: 'Client ID is required' });
+        }
+
+        console.log('Fetching client with ID:', id);
+        const doc = await db.collection(clientCollection).doc(id).get();
+        
         if (!doc.exists) {
+            console.log('Error: Client not found');
             return res.status(404).json({ error: 'Client not found' });
         }
-        res.status(200).json({ id: doc.id, ...doc.data() });
+
+        const clientData = { id: doc.id, ...doc.data() };
+        console.log('Client data found:', clientData);
+        res.status(200).json(clientData);
     } catch (error) {
+        console.error('\n=== Get Client By ID Error ===');
+        console.error('Error:', error);
         res.status(404).json({ error: error.message });
     }
 }
 
 // Update client
-export async function updateClient(req, res) {
+export async function updateClientById(req, res) {
+    console.log('\n=== Update Client Request ===');
+    console.log('Query Parameters:', req.query);
+    console.log('Request Body:', req.body);
+    
     try {
-        const { id } = req.params;
+        const { id } = req.query;
+        if (!id) {
+            console.log('Error: Missing ID parameter');
+            return res.status(400).json({ error: 'Client ID is required' });
+        }
+
         const updateData = req.body;
-        
+        console.log('Updating client with ID:', id);
+        console.log('Update data:', updateData);
+
         await db.collection(clientCollection).doc(id).update({
             ...updateData,
             updatedAt: new Date()
         });
-        res.status(200).json({ id, ...updateData });
+
+        const updatedData = { id, ...updateData };
+        console.log('Client updated successfully:', updatedData);
+        res.status(200).json(updatedData);
     } catch (error) {
+        console.error('\n=== Update Client Error ===');
+        console.error('Error:', error);
         res.status(400).json({ error: error.message });
     }
 }
 
 // Delete client
-export async function deleteClient(req, res) {
+export async function deleteClientById(req, res) {
+    console.log('\n=== Delete Client Request ===');
+    console.log('Query Parameters:', req.query);
+    
     try {
-        const { id } = req.params;
+        const { id } = req.query;
+        if (!id) {
+            console.log('Error: Missing ID parameter');
+            return res.status(400).json({ error: 'Client ID is required' });
+        }
+
+        console.log('Deleting client with ID:', id);
         await db.collection(clientCollection).doc(id).delete();
+        
+        console.log('Client deleted successfully');
         res.status(200).json({ message: 'Client deleted successfully' });
     } catch (error) {
+        console.error('\n=== Delete Client Error ===');
+        console.error('Error:', error);
         res.status(400).json({ error: error.message });
     }
 }

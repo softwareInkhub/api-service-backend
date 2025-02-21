@@ -1,4 +1,7 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Initialize Firebase Admin with environment variables
 const serviceAccount = {
@@ -15,11 +18,11 @@ const serviceAccount = {
   universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN
 };
 
-admin.initializeApp({
+const app = admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: process.env.FIREBASE_DATABASE_URL
 });
 
-const db = admin.firestore();
-
-module.exports = { db, admin }; 
+export const db = admin.firestore();
+export const firebaseAdmin = admin;
+export default app; 
