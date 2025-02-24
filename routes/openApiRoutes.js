@@ -1,50 +1,77 @@
 import express from 'express';
-import { makeRequest } from '../acbda/activities/openApiActivity.js';
+import { makeRequest, makePaginatedRequest } from '../acbda/activities/openApiActivity.js';
 import fetch from 'node-fetch';
+import { db } from '../acbda/accessor/firebaseAccessor.js';
 
 const router = express.Router();
 
 router.post('/openapi', makeRequest);
 
 router.post('/proxy', async (req, res) => {
-  try {
-    const { method, url, queryParams, headers, body } = req.body;
+    console.log('\n=== OpenAPI Route Start ===');
+    console.log('Received proxy request');
+    console.log('Request Body:', req.body);
+    
+    try {
+        await makeRequest(req, res);
+    } catch (error) {
+        console.log('\n=== OpenAPI Route Error ===');
+        console.error('Error in proxy route:', error);
+        res.status(500).json({
+            error: 'Failed to process request',
+            details: error.message
+        });
+    } finally {
+        console.log('\n=== OpenAPI Route End ===');
+    }
+});
 
-    // Build URL with query parameters
-    const urlObj = new URL(url);
-    Object.entries(queryParams).forEach(([key, value]) => {
-      urlObj.searchParams.append(key, value);
-    });
+router.post('/proxy/paginated', async (req, res) => {
+    console.log('\n=== Paginated OpenAPI Route Start ===');
+    
+    // Set proper headers
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Encoding', 'identity'); // Disable compression
+    
+    try {
+        await makePaginatedRequest(req, res);
+    } catch (error) {
+        console.log('\n=== Paginated OpenAPI Route Error ===');
+        console.error('Error in paginated proxy route:', error);
+        res.status(500).json({
+            error: 'Failed to process paginated request',
+            details: error.message
+        });
+    }
+});
 
-    // Make the request
-    const response = await fetch(urlObj.toString(), {
-      method,
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json'
-      },
-      body: method !== 'GET' ? JSON.stringify(body) : undefined
-    });
+router.get('/executions/:requestId', async (req, res) => {
+    try {
+        const snapshot = await db.collection('api-execution')
+            .where('uuid', '==', req.params.requestId)
+            .get();
+        
+        const execution = snapshot.docs.map(doc => doc.data())[0];
+        res.status(200).json(execution);
+    } catch (error) {
+        console.error('Error fetching execution:', error);
+        res.status(500).json({ error: 'Failed to fetch execution details' });
+    }
+});
 
-    // Get response data
-    const data = await response.json();
-    const responseHeaders = Object.fromEntries(response.headers.entries());
-
-    // Send response back to client
-    res.json({
-      status: response.status,
-      data,
-      headers: responseHeaders
-    });
-
-  } catch (error) {
-    console.error('Proxy Error:', error);
-    res.status(500).json({
-      status: 500,
-      data: { error: 'Failed to proxy request' },
-      headers: {}
-    });
-  }
+router.get('/executions/paginated/:startTime', async (req, res) => {
+    try {
+        const snapshot = await db.collection('api-execution')
+            .where('execution-start-time', '>=', new Date(parseInt(req.params.startTime)))
+            .orderBy('execution-start-time', 'asc')
+            .get();
+        
+        const executions = snapshot.docs.map(doc => doc.data());
+        res.status(200).json(executions);
+    } catch (error) {
+        console.error('Error fetching executions:', error);
+        res.status(500).json({ error: 'Failed to fetch executions' });
+    }
 });
 
 export default router; 
